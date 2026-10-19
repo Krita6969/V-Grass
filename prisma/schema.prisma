@@ -1,0 +1,116 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. ผู้ใช้งานระบบ (Admin / User)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String   // เช่น นายสมชาย ใจดี
+  role      String   @default("ADMIN") // ใช้ String แทน Enum
+  createdAt DateTime @default(now())
+}
+
+// 2. ข้อมูลเกษตรกรในระบบ
+model Farmer {
+  id            String   @id @default(uuid())
+  code          String   @unique // เช่น P-4701
+  name          String   // ชื่อ-นามสกุล
+  phone         String   // เบอร์โทรศัพท์
+  district      String   // อำเภอ (เช่น อ.เมืองสกลนคร)
+  subdistrict   String   // ตำบล (เช่น ต.ธาตุเชิงชุม)
+  addressDetail String   // รายละเอียดที่อยู่
+  
+  fields        Field[]  // แปลงเพาะปลูกของเกษตรกรรายนี้
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// 3. ข้อมูลแปลงเพาะปลูก
+model Field {
+  id          String   @id @default(uuid())
+  name        String   // ชื่อแปลง (เช่น แปลงสระบัว A1)
+  sizeRai     Float    // ขนาด (ไร่) เช่น 2.5
+  soilType    String   // ประเภทดิน
+  phValue     Float    // ค่า pH ดิน
+  waterSystem String   // ระบบน้ำ
+  
+  farmerId    String
+  farmer      Farmer   @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  
+  cropPlans   CropPlan[]
+  createdAt   DateTime @default(now())
+}
+
+// 4. ข้อมูลพืชเศรษฐกิจ & พืช GI
+model Plant {
+  id             String    @id @default(uuid())
+  name           String    // ชื่อพืช
+  categoryTag    String?   // Tag แสดงบนบัตร (เช่น GI สกลนคร)
+  type           String    @default("GI_SAKON") // ใช้ String แทน Enum
+  description    String?
+  growDays       Int       // ระยะเวลาปลูก (วัน)
+  yieldPerRaiKg  Float     // ผลผลิต (กก./ไร่)
+  costPerRaiBaht Float     // ต้นทุน (บาท/ไร่)
+  pricePerKgBaht Float     // ราคาขาย (บาท/กก.)
+
+  timelines      PlantTimeline[]
+  cropPlans      CropPlan[]
+  createdAt      DateTime  @default(now())
+}
+
+// 5. ลำดับขั้นตอน Timeline การปลูกพืช
+model PlantTimeline {
+  id        String   @id @default(uuid())
+  stepOrder Int      // ลำดับขั้นตอน
+  title     String   // ชื่อขั้นตอน
+  dayRange  String   // ช่วงวัน
+  iconName  String?  
+  
+  plantId   String
+  plant     Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+}
+
+// 6. การวางแผนการปลูกในแปลง
+model CropPlan {
+  id            String   @id @default(uuid())
+  roundsPerYear Int      @default(3)
+  startDate     DateTime 
+  endDate       DateTime 
+  usedBlocks    Int      @default(10)
+  
+  fieldId       String
+  field         Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  
+  plantId       String
+  plant         Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+}
+
+// 7. คลังความรู้ & วิดีโอสาธิต
+model KnowledgeVideo {
+  id         String   @id @default(uuid())
+  title      String   
+  category   String   
+  youtubeUrl String   
+  createdAt  DateTime @default(now())
+}
+
+// 8. ข้อมูลตลาดและผู้รับซื้อ
+model MarketRequirement {
+  id           String   @id @default(uuid())
+  buyerName    String   // ชื่อผู้รับซื้อ/ตลาด
+  requiredCrop String   // พืช/สินค้าที่ต้องการ
+  quantityKg   Float    // ปริมาณ (กก.)
+  pricePerKg   Float    // ราคารับซื้อ
+  status       String   @default("HIGH_DEMAND") // ใช้ String แทน Enum
+  createdAt    DateTime @default(now())
+}
